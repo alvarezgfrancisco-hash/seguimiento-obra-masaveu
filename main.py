@@ -69,3 +69,32 @@ if not st.session_state.db.empty:
         file_name=f"informe_obra_{date.today()}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+def enviar_correo_obra(archivo_excel):
+    try:
+        remitente = st.secrets["email_usuario"]
+        password = st.secrets["email_password"]
+        destinatario = st.secrets["email_profe"]
+
+        msg = MIMEMultipart()
+        msg['From'] = remitente
+        msg['To'] = destinatario
+        msg['Subject'] = f"Seguimiento de Obra - {date.today()}"
+
+        cuerpo = "Hola Ana, adjunto el registro de seguimiento de obra."
+        msg.attach(MIMEText(cuerpo, 'plain'))
+
+        adjunto = MIMEBase('application', 'octet-stream')
+        adjunto.set_payload(archivo_excel)
+        encoders.encode_base64(adjunto)
+        adjunto.add_header('Content-Disposition', "attachment; filename= seguimiento_obra.xlsx")
+        msg.attach(adjunto)
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(remitente, password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Error: {e}")
+        return False
