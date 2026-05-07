@@ -98,3 +98,12 @@ def enviar_correo_obra(archivo_excel):
     except Exception as e:
         st.error(f"Error: {e}")
         return False
+if not st.session_state.datos.empty:
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        st.session_state.datos.to_excel(writer, index=False)
+    excel_data = output.getvalue()
+
+    if st.button("🚀 Enviar Obra a la profe"):
+        if enviar_correo_obra(excel_data):
+            st.success("✅ ¡Correo de obra enviado!")
