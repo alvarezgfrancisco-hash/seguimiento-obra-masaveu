@@ -1,44 +1,74 @@
 import streamlit as st
+import pandas as pd
+from datetime import date
+import io
 
-# Configuración de la página (opcional pero recomendada)
-st.set_page_config(page_title="Seguimiento de Obra - Masaveu", layout="wide")
+# 1. Configuración de la página
+st.set_page_config(page_title="App de Seguimiento de Obra", page_icon="🏗️")
 
-# Título principal
-st.title("🏗️ Seguimiento de Obra - Masaveu")
+st.title("🏗️ App de Seguimiento de Obra")
+st.write("Complete los datos y envíe el informe por email.")
 
-# Ejemplo de estructura básica
-st.sidebar.header("Opciones")
-opcion = st.sidebar.selectbox("Selecciona una sección", ["Resumen", "Fotos", "Presupuesto"])
+# 2. Inicializar el estado de la sesión (para que los datos no se borren)
+if 'datos_obra' not in st.session_state:
+    st.session_state.datos_obra = pd.DataFrame(columns=["Fecha", "Trabajador", "Tarea", "Estado"])
 
-if opcion == "Resumen":
-    st.subheader("Estado Actual del Proyecto")
-    st.write("Aquí puedes añadir los detalles de la obra.")
+# --- FORMULARIO DE ENTRADA ---
+with st.container():
+    nombre = st.text_input("Nombre del trabajador:", value="raul")
+    fecha = st.date_input("Fecha del informe:", value=date.today())
     
-elif opcion == "Fotos":
-    st.subheader("Galería de Avances")
-    st.info("Sube las imágenes de la semana aquí.")
+    tarea = st.selectbox(
+        "Seleccione la tarea realizada:",
+        [
+            "Trazado y marcado de cajas, tubos y cuadros",
+            "Instalación de tubería",
+            "Cableado",
+            "Montaje de mecanismos",
+            "Pruebas de continuidad"
+        ]
+    )
+    
+    estado = st.selectbox(
+        "Estado de la tarea:",
+        ["Avance 25% aprox.", "Avance 50% aprox.", "Avance 75% aprox.", "Tarea finalizada"]
+    )
 
-else:
-    st.subheader("Control de Gastos")
-    st.write("Tabla de presupuesto y materiales.")
+    if st.button("Añadir a la lista"):
+        nueva_fila = pd.DataFrame({
+            "Fecha": [fecha.strftime("%Y-%m-%d")],
+            "Trabajador": [nombre],
+            "Tarea": [tarea],
+            "Estado": [estado]
+        })
+        st.session_state.datos_obra = pd.concat([st.session_state.datos_obra, nueva_fila], ignore_index=True)
+        st.success("Registro añadido correctamente.")
 
-# 5. TABLA Y ENVÍO
-st.subheader("Registros actuales")
-st.dataframe(st.session_state.datos_obra, use_container_width=True)
+st.divider()
+
+# --- TABLA DE REGISTROS ---
+st.subheader("Registros actuales:")
 
 if not st.session_state.datos_obra.empty:
-    # Generar Excel
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        st.session_state.datos_obra.to_excel(writer, index=False)
-    excel_data = output.getvalue()
-
-    col_desc, col_env = st.columns(2)
-    with col_desc:
-        st.download_button("📥 Descargar Excel", data=excel_data, file_name="seguimiento_obra.xlsx")
+    st.dataframe(st.session_state.datos_obra, use_container_width=True)
     
-    with col_env:
-        if st.button("🚀 Enviar Obra a la profe"):
-            with st.spinner("Enviando..."):
-                if enviar_correo_obra(excel_data):
-                    st.success("✅ ¡Enviado a Ana!")
+    col1, col2 = st.columns(2)
+    
+    # Lógica para descargar Excel
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        st.session_state.datos_obra.to_excel(writer, index=False)
+        
+    with col1:
+        st.download_button(
+            label="📥 Descargar Informe Excel",
+            data=buffer.getvalue(),
+            file_name=f"informe_{date.today()}.xlsx",
+            mime="application/vnd.ms-excel"
+        )
+    
+    with col2:
+        if st.button("📧 Enviar por Email"):
+            st.info("Sistema de envío preparado (requiere configurar correo).")
+else:
+    st.info("No hay registros todavía.")
